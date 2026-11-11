@@ -60,6 +60,21 @@ python train.py --eval --output-dir output_final
 
 参考轨迹支持三种模式：`sine`（正弦摆动）、`swingup`（摆起并保持）、`random_walk`（平滑随机游走）。
 
+## 预训练模型
+
+`supermimic_l0/models/l0_ppo_pendulum.zip` 是 300k 步训练后的策略，可直接加载复现上面的指标，无需重训：
+
+```bash
+cd supermimic_l0
+python -c "
+from stable_baselines3 import PPO
+model = PPO.load('models/l0_ppo_pendulum.zip')
+print('loaded ok, observation space:', model.observation_space)
+"
+```
+
+配合 `train.py --eval` 使用时，把它复制到输出目录并命名为 `ppo_pendulum_final.zip` 即可。
+
 ## 目录结构
 
 ```
@@ -72,7 +87,9 @@ python train.py --eval --output-dir output_final
     ├── test_wrapper.py          # 不依赖 torch 的 wrapper 单测
     ├── assets/
     │   └── l0_tracking_comparison.png
-    └── output_final/            # 训练产物（被 .gitignore 忽略）
+    ├── models/
+    │   └── l0_ppo_pendulum.zip  # 300k 步训练好的策略（1.6M）
+    └── output_final/            # 运行时产物（被 .gitignore 忽略）
 ```
 
 ## L0 的两个关键设计决策
