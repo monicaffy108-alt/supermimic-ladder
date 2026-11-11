@@ -5,19 +5,19 @@ __pycache__/
 *.egg-info/
 .ipynb_checkpoints/
 
-# 虚拟环境
+# Virtual environments
 .venv/
 venv/
 env/
 ENV/
 
-# 训练产物（体积大 / 可重新生成）
+# Training artifacts (large / regenerable)
 output_*/
 !output_*/.gitkeep
 *.zip
-# 例外：L0 训练好的模型，随仓库分发
+# Exception: the trained L0 policy ships with the repository
 !supermimic_l0/models/*.zip
-# SB3 save() 除了 zip 还会解压出同名目录
+# SB3 save() also unpacks a directory next to the zip
 ppo_*/
 *.pkl
 *.monitor.csv
@@ -25,11 +25,11 @@ events.out.tfevents.*
 checkpoints/
 tensorboard/
 
-# 系统文件
+# System files
 .DS_Store
 Thumbs.db
 
-# 编辑器
+# Editors
 .vscode/
 .idea/
 *.swp

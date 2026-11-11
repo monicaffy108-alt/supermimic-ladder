@@ -1,12 +1,16 @@
-"""L0 跟踪环境：把 Pendulum-v1 改造成「跟着参考轨迹摆动」的任务。
+"""L0 tracking environment: turns Pendulum-v1 into "swing along a reference".
 
-三个关键设计（都是踩过坑才定下来的）：
-1. 参考相位必须进观测。只给 [cosθ, sinθ, θ̇] 时，策略无法区分
-   「t=1.25s 目标是 +0.6」和「t=3.75s 目标是 −0.6」，只能收敛到转圈。
-2. 参考振幅必须在力矩可达范围内。Pendulum 动力学 θ̈ = 15·sinθ + 3u 无阻尼，
-   静止撑住角度需要 u = 5·sinθ，而 |u| ≤ 2 → 最大可静止角约 0.41 rad。
-3. 振幅要课程式增长。直接从 0.3 开始，策略会收敛到「躺在 0 不动」的局部最优，
-   因为躺平的每步代价只有 A²/2。
+Three design choices, each of which came from a failure mode we hit:
+1. The reference phase must be part of the observation. With only
+   [cos, sin, theta_dot] the policy cannot tell "at t=1.25s the target is +0.6"
+   apart from "at t=3.75s the target is -0.6", so it collapses to spinning.
+2. The reference amplitude must stay within the torque budget. Pendulum dynamics
+   are theta_ddot = 15*sin(theta) + 3u with no damping, so holding an angle
+   requires u = 5*sin(theta); with |u| <= 2 the largest holdable angle is
+   about 0.41 rad.
+3. The amplitude must ramp up as a curriculum. Starting at 0.3 directly lets the
+   policy settle into the "park at zero" local optimum, because parking only
+   costs A^2/2 per step.
 """
 import gymnasium as gym
 from gymnasium import spaces
@@ -18,7 +22,8 @@ AMP_START = 0.05
 AMP_FINAL = 0.3
 MAX_TORQUE = 2.0
 
-# 当前生效振幅。DummyVecEnv 下同进程共享，供课程回调实时修改。
+# Amplitude currently in effect. Under DummyVecEnv every env shares this process,
+# so the curriculum callback can update it live.
 _CUR_AMP = AMP_START
 
 
@@ -40,12 +45,14 @@ def dtheta_ref(t):
 
 
 def wrap(a):
-    """把角度差折叠到 [-π, π]，避免跨越 ±π 时出现 2π 的虚假误差。"""
+    """Wrap an angular difference into [-pi, pi] so crossing the boundary
+    does not produce a spurious 2*pi error."""
     return np.arctan2(np.sin(a), np.cos(a))
 
 
 def required_peak_torque(amp, freq=FREQ, dt=DT):
-    """精确跟踪该参考轨迹所需的峰值力矩，用于检查任务是否物理可行。"""
+    """Peak torque needed to track this reference exactly; used to check that
+    the task is physically feasible before training starts."""
     w = 2 * np.pi * freq
     ts = np.arange(0, 2 * np.pi / w, dt)
     u = (-(amp * w ** 2) * np.sin(w * ts)
@@ -54,7 +61,7 @@ def required_peak_torque(amp, freq=FREQ, dt=DT):
 
 
 class TrackingPendulum(gym.Wrapper):
-    """观测 = [cosθ, sinθ, θ̇, θ_ref, θ̇_ref]，共 5 维。"""
+    """Observation = [cos, sin, theta_dot, ref, ref_dot], 5 dimensions."""
 
     def __init__(self, env):
         super().__init__(env)
@@ -75,7 +82,8 @@ class TrackingPendulum(gym.Wrapper):
         self.t += DT
         theta = np.arctan2(obs[1], obs[0])
         err = wrap(theta - theta_ref(self.t))
-        # 完全覆盖原生 reward：原生奖励鼓励停在顶端静止，与跟踪目标冲突
+        # Fully overrides the native reward: the native one rewards parking at
+        # the top, which directly conflicts with tracking a moving reference.
         r = -(err ** 2) - 0.001 * np.sum(np.square(action))
         info.update(theta=theta, ref=theta_ref(self.t), err=err, t=self.t)
         return self._aug(obs), r, term, trunc, info

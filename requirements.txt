@@ -1,4 +1,4 @@
-# SuperMimic L0 —— Pendulum-v1 motion imitation
+# Supermimic L0 - Pendulum-v1 motion imitation
 # Python 3.10+
 torch>=2.0
 gymnasium>=0.29

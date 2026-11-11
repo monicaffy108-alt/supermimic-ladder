@@ -19,7 +19,7 @@ Each rung is independently runnable and independently verifiable, so the project
 | Protocol | Setup | RMSE | MAE | Max error |
 |---|---|---|---|---|
 | **A — aligned start** | Pole initialised to the reference's starting state; measures pure tracking accuracy | **0.0805 rad (4.61°)** | 0.0704 rad | 0.1406 rad |
-| **B — random start** | Gymnasium's random initial state, includes braking and recovery | 0.7377 ± 0.1765 rad (42.3°) | — | — |
+| **B — random start** | Gymnasium's random initial state, includes braking and recovery | 0.6277 ± 0.3234 rad (36.0°) | — | — |
 
 ![L0 tracking result](supermimic_l0/assets/l0_tracking_final.png)
 

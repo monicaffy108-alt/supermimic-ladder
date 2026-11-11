@@ -1,10 +1,10 @@
-"""L0 训练：Pendulum-v1 + PPO + 课程式振幅。
+"""L0 training: Pendulum-v1 + PPO + a curriculum-scheduled amplitude.
 
-用法：
+Usage:
     cd supermimic_l0
     python train_curriculum.py
 
-耗时约 3 分钟（CPU，~2000 fps）。
+Takes about 3 minutes on CPU (~2000 fps).
 """
 import numpy as np
 from stable_baselines3 import PPO
@@ -14,13 +14,14 @@ from stable_baselines3.common.callbacks import BaseCallback
 
 import tracking_env as te
 
-RAMP_STEPS = 250_000      # 前 250k 步振幅从 AMP_START 线性涨到 AMP_FINAL
+RAMP_STEPS = 250_000      # amplitude ramps from AMP_START to AMP_FINAL over this many steps
 TOTAL_STEPS = 400_000
 MODEL_PATH = 'models/l0_ppo_curriculum.zip'
 
 
 class AmpCurriculum(BaseCallback):
-    """每个 step 把振幅往 AMP_FINAL 推一点，避免策略在易任务上过拟合后塌回躺平。"""
+    """Nudges the amplitude toward AMP_FINAL every step, so the policy never
+    collapses back to parking after being trained on an easy version."""
 
     def __init__(self):
         super().__init__()
@@ -32,19 +33,20 @@ class AmpCurriculum(BaseCallback):
         mark = self.num_timesteps // 50_000
         if mark != self._last_mark:
             self._last_mark = mark
-            print(f'[curriculum] step={self.num_timesteps:>7d}  当前振幅={te.get_amp():.3f}')
+            print(f'[curriculum] step={self.num_timesteps:>7d}  amplitude={te.get_amp():.3f}')
         return True
 
 
 def main():
     peak = te.required_peak_torque(te.AMP_FINAL)
-    print(f'最终振幅 AMP={te.AMP_FINAL}  频率={te.FREQ} Hz')
-    print(f'精确跟踪所需峰值力矩 : {peak:.3f} / 上限 {te.MAX_TORQUE:.1f} → '
-          + ('可行' if peak <= te.MAX_TORQUE else '不可行'))
+    print(f'Final amplitude AMP={te.AMP_FINAL}  frequency={te.FREQ} Hz')
+    print(f'Peak torque for exact tracking : {peak:.3f} / limit {te.MAX_TORQUE:.1f} -> '
+          + ('feasible' if peak <= te.MAX_TORQUE else 'INFEASIBLE'))
     print()
 
     te.set_amp(te.AMP_START)
-    # DummyVecEnv：所有 env 在同一进程，课程回调改全局振幅才能立刻生效
+    # DummyVecEnv: all envs live in this process, so the curriculum callback can
+    # change the global amplitude and have it take effect immediately.
     env = make_vec_env(te.make_env, n_envs=4, vec_env_cls=DummyVecEnv)
     model = PPO('MlpPolicy', env,
                 n_steps=1024, batch_size=64,
@@ -55,7 +57,7 @@ def main():
 
     te.set_amp(te.AMP_FINAL)
     model.save(MODEL_PATH)
-    print(f'\n模型已保存: {MODEL_PATH}')
+    print(f'\nModel saved: {MODEL_PATH}')
 
 
 if __name__ == '__main__':
