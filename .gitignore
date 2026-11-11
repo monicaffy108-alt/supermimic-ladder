@@ -17,6 +17,8 @@ output_*/
 *.zip
 # 例外：L0 训练好的模型，随仓库分发
 !supermimic_l0/models/*.zip
+# SB3 save() 除了 zip 还会解压出同名目录
+ppo_*/
 *.pkl
 *.monitor.csv
 events.out.tfevents.*
